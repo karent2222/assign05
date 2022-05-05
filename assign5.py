@@ -5,6 +5,7 @@ your *.py file in Canvas. I will download and test your program from Canvas.
 
 import time
 import sys
+import random
 INF = sys.maxsize
 
 
@@ -28,11 +29,22 @@ def adjMatFromFile(filename):
     f.close()
     return adjmat
 
+def calcLength(g, path):
+    """ Calculate length of path. """
+    distance = 0
+    for i in range(len(path) - 1):
+        distance += g[path[i]][path[i + 1]]
+    distance += g[path[-1]][path[0]]
+    return distance
+
+def calcFitness(g, path):
+    """ Calculate fitness of path. """
+    return 1 / calcLength(g, path)
 
 def TSPwGenAlgo(
         g,
-        max_num_generations=5,
-        population_size=10,
+        max_num_generations=1000,
+        population_size=1000,
         mutation_rate=0.01,
         explore_rate=0.5
     ):
@@ -45,28 +57,64 @@ def TSPwGenAlgo(
     solution_path = [] # list of n+1 verts representing sequence of vertices with lowest total distance found
     solution_distance = INF # distance of final solution path, note this should include edge back to starting vert
     avg_path_each_generation = [] # store average path length path across individuals in each generation
-
+    
+    n = len(g)
+    
     # create individual members of the population
-
     # initialize individuals to an initial 'solution'
+    population = []
+    for i in range(population_size):
+        path = random.sample(range(n), n)
+        population.append(path)
 
     # loop for x number of generations (can also choose to add other early-stopping criteria)
-
+    for x in range(max_num_generations):
         # calculate fitness of each individual in the population
+        fitnesses = [calcFitness(g, path) for path in population]
 
         # calculate average path length across individuals in this generation
         # and store in avg_path_each_generation
+        lengths = [calcLength(g, path) for path in population]
+        avg_length = sum(lengths) / population_size
+        avg_path_each_generation.append(avg_length)
 
         # select the individuals to be used to spawn the generation, then create
         # individuals of the new generation (using some form of crossover)
+        parent1 = population.pop(fitnesses.index(max(fitnesses)))
+        fitnesses.remove(max(fitnesses))
+        parent2 = population.pop(fitnesses.index(max(fitnesses)))
+        fitnesses.remove(max(fitnesses))
+
+        population = []
+        for i in range(population_size):
+            child = []
+            a = random.randint(0, n - 1)
+            b = random.randint(0, n - 1)
+            start = min(a, b)
+            end = max(a, b)
+            for i in range(start, end + 1):
+                child.append(parent1[i])
+            child += [x for x in parent2 if x not in child]
+            population.append(child)
 
         # allow for mutations (shuold be based on mutation_rate, should not happen too often)
+        for i in range(population_size):
+            if random.random() < mutation_rate:
+                a = random.randint(0, n - 1)
+                b = random.randint(0, n - 1)
+                population[i][a], population[i][b] = population[i][b], population[i][a]
 
         # ...
 
     # calculate and *verify* final solution
-
+    fitnesses = [calcFitness(g, path) for path in population]
+    solution_path = population.pop(fitnesses.index(max(fitnesses)))
+    if len(solution_path) != len(set(solution_path)):
+        raise Exception('Error: Invalid final solution')
+    
     # update solution_path and solution_distance
+    solution_distance = calcLength(g, solution_path)
+    solution_path.append(solution_path[0])
 
     # ...
 
@@ -105,7 +153,7 @@ def TSPwBandB(g):
 
 def assign05_main():
     """ Load the graph (change the filename when you're ready to test larger ones) """
-    g = adjMatFromFile("complete_graph_n08.txt")
+    g = adjMatFromFile("complete_graph_n100.txt")
 
     # Run genetic algorithm to find best solution possible
     start_time = time.time()
